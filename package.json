@@ -1,0 +1,28 @@
+{
+  "name": "flutter_app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "doctor": "flutter doctor",
+    "flutter clean" : "flutter clean",
+    "flutter pub get": "flutter pub get",
+    "web": "flutter build web --release",
+    "ios": "flutter build ios --release",
+    "android": "flutter build apk",
+    "pod": "cd ios && pod install",
+    "flutter devices": "flutter devices",
+    "build runner": "flutter pub run build_runner build",
+    "build runner_watch": "flutter pub run build_runner watch",
+    "flutter upgrade": "flutter upgrade --force",
+    "flutter emulators": "flutter emulators",
+    "flutter run --release": "flutter run --release",
+    "dart --version": "dart --version"
+  },
+  "dependencies": {
+
+  },
+  "devDependencies": {
+
+  }
+}
+

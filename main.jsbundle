@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Error: EISDIR: illegal operation on a directory, read<br> &nbsp; &nbsp;at Object.readSync (fs.js:581:3)<br> &nbsp; &nbsp;at tryReadSync (fs.js:357:20)<br> &nbsp; &nbsp;at Object.readFileSync (fs.js:394:19)<br> &nbsp; &nbsp;at UnableToResolveError.buildCodeFrameMessage (/Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/node-haste/DependencyGraph/ModuleResolution.js:304:17)<br> &nbsp; &nbsp;at new UnableToResolveError (/Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/node-haste/DependencyGraph/ModuleResolution.js:290:35)<br> &nbsp; &nbsp;at ModuleResolver.resolveDependency (/Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/node-haste/DependencyGraph/ModuleResolution.js:168:15)<br> &nbsp; &nbsp;at DependencyGraph.resolveDependency (/Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/node-haste/DependencyGraph.js:353:43)<br> &nbsp; &nbsp;at /Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/lib/transformHelpers.js:271:42<br> &nbsp; &nbsp;at Server.&lt;anonymous&gt; (/Users/worldunionyellow/Desktop/privatecustomer/node_modules/metro/src/Server.js:842:41)<br> &nbsp; &nbsp;at Generator.next (&lt;anonymous&gt;)</pre>
+</body>
+</html>
