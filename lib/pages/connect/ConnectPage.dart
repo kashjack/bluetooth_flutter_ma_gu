@@ -14,10 +14,16 @@ import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/helper/FlutterBlue/JKBluetooth.dart';
 import 'package:flutter_app/helper/config/config.dart';
 import 'package:flutter_app/helper/config/image.dart';
+import 'package:flutter_app/helper/config/text_style.dart';
+import 'package:flutter_app/notifier/changeNotifier.dart';
 import 'package:flutter_app/route/BasePage.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
-import 'package:flutter_easyrefresh/easy_refresh.dart';
+import 'package:provider/provider.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:get/get.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'package:fluttertoast/fluttertoast.dart';
 
 class ConnectPage extends BaseWidget {
@@ -25,182 +31,143 @@ class ConnectPage extends BaseWidget {
 }
 
 class _ConnectPageState extends BaseWidgetState<ConnectPage> {
-  List<String> sectionListTitle = [
-    S.current.Paired_Device,
-    S.current.Devices_Found
-  ];
-  List<ScanResult> scanResultList = [];
-  EasyRefreshController _controller = EasyRefreshController();
-  StreamSubscription<List<ScanResult>>? scanSubscription;
+  List<String> sectionListTitle = [S.current.Paired_Device, S.current.Devices_Found];
 
-  void initData() {
-    JKBluetooth.instance.initBle();
-    JKBluetooth.startScan();
-    scanSubscription = JKBluetooth.instance.scaning().listen((results) {
-      // 扫描结果 可扫描到的所有蓝牙设备
-      for (ScanResult result in results) {
-        // Fluttertoast.showToast(msg: result.device.name);
-        if (result.device.name.length > 0 &&
-            result.device.id.toString() != result.device.name &&
-            !this.scanResultList.contains(result) &&
-            JKBluetooth.instance.device != result.device) {
-          scanResultList.add(result);
-        }
-      }
-      this.setState(() {});
-    });
+  RefreshController _controller = RefreshController(initialRefresh: true);
+  List<ScanResult> _deviceList = [];
+  StreamSubscription? _streamSubscription;
+
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    super.dispose();
   }
 
   buildVerticalLayout() {
-    return this._buildBodyLayout();
+    return _buildBodyLayout();
   }
 
   buildHorizontalLayout() {
-    return this._buildBodyLayout();
+    return _buildBodyLayout();
   }
 
   Widget _buildBodyLayout() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        this.initTitleView(),
-        this.initContentView(),
+        _buildTopView(),
+        _buildContentView(),
       ],
     );
   }
 
-  Widget initTitleView() {
+  Widget _buildTopView() {
     return Container(
       height: 50,
       padding: EdgeInsets.symmetric(horizontal: 15),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          InkWell(
-            onTap: () {
-              this.back();
-            },
-            child: Container(
-              width: 105,
-              alignment: Alignment.centerLeft,
-              child: Image.asset(
-                JKImage.icon_back,
-                height: 25,
-                width: 25,
-                fit: BoxFit.fitHeight,
-              ),
-            ),
-          ),
-          Text(
-            S.current.Device,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontFamily: 'Mont',
-            ),
-          ),
-          InkWell(
-            onTap: () {
-              if (JKBluetooth.isConnect()) {
-                Fluttertoast.showToast(msg: S.current.Connect);
-              } else {
-                Fluttertoast.showToast(msg: S.current.DisConnected);
-              }
-            },
-            child: Container(
-              width: 105,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Offstage(
-                    offstage: !JKBluetooth.isConnect(),
-                    child: Image.asset(
-                      JKImage.icon_true,
-                      height: 15,
-                      width: 20,
-                      fit: BoxFit.fitHeight,
-                    ),
-                  ),
-                  Text(
-                    S.current.Connect,
-                    style: TextStyle(
-                      fontFamily: 'Mont',
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildBackView(),
+          _buildTitleView(),
+          buildConnectView(),
         ],
       ),
     );
   }
 
-  Widget initContentView() {
-    int itemCount =
-        this.scanResultList.length + (JKBluetooth.isConnect() ? 3 : 2);
-    return Expanded(
-      child: MediaQuery.removePadding(
-        context: context,
-        removeTop: true,
-        child: EasyRefresh(
-          enableControlFinishRefresh: false,
-          controller: _controller,
-          onRefresh: () async {
-            JKBluetooth.startScan();
-            this.setState(() {
-              scanResultList = [];
-            });
-            _controller.finishRefresh(success: true);
-            _controller.finishLoad(success: true, noMore: false);
-          },
-          header: ClassicalHeader(
-            refreshText: S.current.pull_to_scan,
-            refreshReadyText: S.current.release_to_scan,
-            refreshingText: S.current.scaning + '...',
-            refreshedText: S.current.scaning + '...',
-            textColor: Colors.white,
-            showInfo: false,
-          ),
-          child: ListView.separated(
-            itemCount: itemCount,
-            separatorBuilder: (BuildContext context, int index) =>
-                const Divider(
-              height: 1,
-              color: Colors.grey,
-            ),
-            itemBuilder: (BuildContext context, int index) {
-              if (index == 0) {
-                return this.initGroupView(this.sectionListTitle.first);
-              }
-              if (JKBluetooth.isConnect()) {
-                // 连上蓝牙
-                if (index == 1) {
-                  return this.initRowView(JKBluetooth.instance.device!);
-                } else if (index == 2) {
-                  return this.initGroupView(this.sectionListTitle.last);
-                }
-                return this.initRowView(this.scanResultList[index - 3].device);
-              } else {
-                // 未连蓝牙
-                if (index == 1) {
-                  return this.initGroupView(this.sectionListTitle.last);
-                }
-                return this.initRowView(this.scanResultList[index - 2].device);
-              }
-            },
+  Widget _buildBackView() {
+    return Container(
+      width: 100.w,
+      child: InkWell(
+        onTap: () {
+          Get.back();
+        },
+        child: Container(
+          alignment: Alignment.centerLeft,
+          child: Image.asset(
+            JKImage.icon_back,
+            height: 25.w,
+            width: 25.w,
+            fit: BoxFit.fitHeight,
           ),
         ),
       ),
     );
   }
 
-  Widget initGroupView(String title) {
+  Widget _buildTitleView() {
+    return Container(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        S.current.Device,
+        style: styleSize_17Height_24.copyWith(
+          color: Colors.white,
+          fontFamily: 'Mont',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentView() {
+    return ChangeNotifierProvider.value(
+      value: ConnectNotifier.instance,
+      builder: (context, child) {
+        bool isConnected = context.watch<ConnectNotifier>().isConnected;
+        List<int> groupLength = [(isConnected ? 1 : 0), _deviceList.length];
+        List<String> sectionListTitle = [S.current.Paired_Device, S.current.Devices_Found];
+        return Expanded(
+          child: SmartRefresher(
+            controller: _controller,
+            enablePullUp: false,
+            onRefresh: () {
+              _controller.refreshCompleted();
+              _controller.loadComplete();
+              _deviceList.clear();
+              _streamSubscription = JKBluetooth.instance.startScan().listen((result) {
+                if (!_deviceList.contains(result)) {
+                  _deviceList.add(result);
+                }
+                if (mounted) {
+                  setState(() {});
+                }
+              });
+            },
+            child: ListView.builder(
+              itemCount: 2,
+              itemBuilder: (context, index) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 分组标题
+                    _buildGroupView(sectionListTitle[index]),
+                    // 分组中的行
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: groupLength[index],
+                      itemBuilder: (BuildContext context, int rowIndex) {
+                        if (index == 0) {
+                          return _buildItemView(JKBluetooth.instance.connectedDevice!);
+                        } else {
+                          return _buildItemView(_deviceList[rowIndex].device);
+                        }
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupView(String title) {
     return Container(
       height: 50,
-      margin: EdgeInsets.only(left: 15),
+      margin: EdgeInsets.symmetric(horizontal: 15),
       alignment: Alignment.centerLeft,
       child: Text(
         title,
@@ -213,90 +180,41 @@ class _ConnectPageState extends BaseWidgetState<ConnectPage> {
     );
   }
 
-  Widget initRowView(BluetoothDevice device) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+  Widget _buildItemView(BluetoothDevice device) {
+    return InkWell(
+      onTap: () async {
+        if (ConnectNotifier.instance.isConnected) {
+          // 点击断开
+          EasyLoading.show(status: S.current.DisConnected + '...');
+          JKBluetooth.disConnect().then((value) {
+            EasyLoading.dismiss();
+            Fluttertoast.showToast(msg: S.current.DisConnected);
+          });
+          setState(() {});
+        } else {
+          // 点击连接
+          EasyLoading.show(status: S.current.Connect + '...');
+          await JKBluetooth.connectDevice(device).catchError(
+            (e, stacktrace) {
+              EasyLoading.dismiss();
+              Fluttertoast.showToast(msg: 'S.current.Connection_Timed_Out');
+              throw Exception("$e $stacktrace");
+            },
+          );
+          EasyLoading.dismiss();
+          Fluttertoast.showToast(msg: S.current.Connected);
+        }
+      },
       child: Container(
         padding: EdgeInsets.only(top: 15, bottom: 15, left: 30, right: 20),
         child: Text(
-          device.name,
+          device.platformName,
           style: TextStyle(
             fontFamily: 'Mont',
             color: Colors.white,
           ),
         ),
       ),
-      onTap: () {
-        bool isConnectDevice = (JKBluetooth.instance.device == device);
-        if (isConnectDevice) {
-          EasyLoading.show(status: S.current.DisConnected + '...');
-          JKBluetooth.disConnect().then((value) {
-            JKBluetooth.instance.device = null;
-            EasyLoading.dismiss();
-            Fluttertoast.showToast(msg: S.current.DisConnected);
-            JKBluetooth.startScan();
-          });
-        } else {
-          this.connect(device);
-        }
-      },
     );
-  }
-
-  void connect(BluetoothDevice device) {
-    EasyLoading.show(status: S.current.Connect + '...');
-    JKBluetooth.instance.connectDevice(device).then((value) {
-      EasyLoading.dismiss();
-      Fluttertoast.showToast(msg: S.current.Connected);
-      this.setState(() {});
-      List<BluetoothService> services = value;
-      services.forEach((service) {
-        printLog("所有服务值 --- $service");
-        if (service.uuid.toString().toUpperCase().substring(4, 8) == "FFF0") {
-          service.characteristics.forEach((characteristic) {
-            // characteristic.uuid;
-            String upString =
-                characteristic.uuid.toString().toUpperCase().substring(4, 8);
-            // printLog("所有特征值 --- $characteristic");
-            if (upString == "FFF2") {
-              JKBluetooth.instance.wCharacteristic = characteristic;
-            } else if (upString == "FFF1") {
-              JKBluetooth.setNoticeCharacteristic(characteristic);
-            }
-          });
-        }
-      });
-    });
-  }
-
-  dataCallbackBle() async {
-    await JKBluetooth.instance.rCharacteristic!.setNotifyValue(true);
-    JKBluetooth.instance.rCharacteristic!.value.listen((value) {
-      // do something with new value
-      // print("我是蓝牙返回数据 - $value");
-      if (value == null) {
-        printLog("我是蓝牙返回数据 - 空！！");
-        return;
-      }
-      List data = [];
-      for (var i = 0; i < value.length; i++) {
-        String dataStr = value[i].toRadixString(16);
-        if (dataStr.length < 2) {
-          dataStr = "0" + dataStr;
-        }
-        String dataEndStr = "0x" + dataStr;
-        data.add(dataEndStr);
-      }
-      printLog("我是蓝牙返回数据 - $data");
-    });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    if (scanSubscription != null) {
-      scanSubscription!.cancel();
-    }
-    JKBluetooth.stopScan();
   }
 }

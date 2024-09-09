@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/helper/FlutterBlue/JKSetting.dart';
 import 'package:flutter_app/helper/config/config.dart';
 import 'package:flutter_app/main.dart';
+import 'package:flutter_app/notifier/changeNotifier.dart';
+import 'package:flutter_app/notifier/device_model.dart';
 import 'package:flutter_app/pages/bt/BTPage.dart';
 import 'package:flutter_app/pages/caraux/CarAuxPage.dart';
 import 'package:flutter_app/pages/play/PlayPage.dart';
@@ -11,66 +15,117 @@ import 'package:flutter_app/pages/radio/RadioPage.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
 
 import 'JKSetting.dart';
 
 typedef _CallBack = void Function(String value);
 
-class JKBluetooth {
+class JKBluetooth extends ChangeNotifier {
+  /// 1. 创建一个静态的私有实例
+  static final JKBluetooth _instance = JKBluetooth._privateConstructor();
+
+  /// 2. 声明一个私有的构造方法
   JKBluetooth._privateConstructor();
 
-  static final JKBluetooth instance = JKBluetooth._privateConstructor();
+  /// 3. 提供一个公共的访问方法来获取单例实例
+  static JKBluetooth get instance => _instance;
 
-  // ignore: cancel_subscriptions
-  StreamSubscription<bool>? _subscriptionIsScanning;
+  BluetoothDevice? connectedDevice;
 
-  // ignore: cancel_subscriptions
-  StreamSubscription<List<int>>? _subscriptionNotice;
-  BluetoothDevice? device;
-  FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
-  bool isScanning = false;
+  /// 写套接字
+  BluetoothCharacteristic? _wCharacteristic;
+
+  /// 读套接字
+  BluetoothCharacteristic? _rCharacteristic;
+
+  Queue<BluetoothTask> bluetoothQueue = Queue<BluetoothTask>();
+
+  StreamSubscription<BluetoothConnectionState>? _device_subscription;
+  StreamSubscription<List<int>>? _characteristic_subscription;
+
   BluetoothCharacteristic? wCharacteristic;
   BluetoothCharacteristic? rCharacteristic;
   _CallBack? stateCallback;
-  _CallBack? modeCallback;
 
-  initBle() {
-    if (JKBluetooth.instance._subscriptionIsScanning != null) {
-      JKBluetooth.instance._subscriptionIsScanning!.cancel();
+  bool _isSending = false;
+
+  /// 初始化蓝牙
+  Future<void> initBle() async {
+    if (await FlutterBluePlus.isSupported == false) {
+      // printLog('Bluetooth not supported by this device');
+      return;
     }
-    JKBluetooth.instance._subscriptionIsScanning =
-        JKBluetooth.instance.flutterBlue.isScanning.listen((event) {
-      bool isScanning = event;
-      JKBluetooth.instance.isScanning = isScanning;
-    });
+    FlutterBluePlus.setLogLevel(LogLevel.error);
+
+    if (Platform.isAndroid) {
+      await FlutterBluePlus.turnOn();
+    }
+
+    await FlutterBluePlus.adapterState.where((event) => event == BluetoothAdapterState.on).first;
   }
 
-  initModeCallback() {
-    modeCallback = (value) {
-      if (value == 'disconnect') {
-        navigatorKey.currentState!.popUntil(ModalRoute.withName("/"));
-        Fluttertoast.showToast(msg: S.current.reconnected_msg);
-      } else if (value == 'mode') {
-        JKSetting.instance.isModeChange = true;
-        if (JKSetting.instance.mode == 1) {
-          push(BtPage());
-        } else if (JKSetting.instance.mode == 2) {
-          push(RadioPage());
-        } else if (JKSetting.instance.mode == 3) {
-          push(PlayPage());
-        } else if (JKSetting.instance.mode == 4) {
-          push(PlayPage());
-        } else if (JKSetting.instance.mode == 5) {
-          push(CarAuxPage());
+  /// 开始扫描
+  Stream<ScanResult> startScan() {
+    StreamController<ScanResult> controller = StreamController<ScanResult>();
+    FlutterBluePlus.scanResults.listen((results) {
+      for (ScanResult result in results) {
+        if (result.device.platformName.length > 0) {
+          controller.sink.add(result);
         }
       }
-    };
+    });
+    if (!FlutterBluePlus.isScanningNow) {
+      FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 5),
+        androidUsesFineLocation: true,
+      );
+    } else {
+      FlutterBluePlus.stopScan().then((value) {
+        FlutterBluePlus.startScan(
+          timeout: Duration(seconds: 5),
+          androidUsesFineLocation: true,
+        );
+      });
+    }
+    return controller.stream;
   }
 
+  // initBle() {
+  //   if (JKBluetooth.instance._subscriptionIsScanning != null) {
+  //     JKBluetooth.instance._subscriptionIsScanning!.cancel();
+  //   }
+  //   JKBluetooth.instance._subscriptionIsScanning =
+  //       JKBluetooth.instance.flutterBlue.isScanning.listen((event) {
+  //     bool isScanning = event;
+  //     JKBluetooth.instance.isScanning = isScanning;
+  //   });
+  // }
+
+  // initModeCallback() {
+  //   modeCallback = (value) {
+  //     if (value == 'disconnect') {
+  //       navigatorKey.currentState!.popUntil(ModalRoute.withName("/"));
+  //       Fluttertoast.showToast(msg: S.current.reconnected_msg);
+  //     } else if (value == 'mode') {
+  //       JKSetting.instance.isModeChange = true;
+  //       if (JKSetting.instance.mode == 1) {
+  //         push(BtPage());
+  //       } else if (JKSetting.instance.mode == 2) {
+  //         push(RadioPage());
+  //       } else if (JKSetting.instance.mode == 3) {
+  //         push(PlayPage());
+  //       } else if (JKSetting.instance.mode == 4) {
+  //         push(PlayPage());
+  //       } else if (JKSetting.instance.mode == 5) {
+  //         push(CarAuxPage());
+  //       }
+  //     }
+  //   };
+  // }
+
   push(Widget page) {
-    navigatorKey.currentState!
-        .push(MaterialPageRoute(builder: (context) => page))
-        .then((value) {
+    navigatorKey.currentState!.push(MaterialPageRoute(builder: (context) => page)).then((value) {
       if (value != null && value) {
         // ignore: invalid_use_of_protected_member
         navigatorKey.currentState!.setState(() {});
@@ -79,103 +134,218 @@ class JKBluetooth {
   }
 
   static bool isConnect() {
-    if (JKBluetooth.instance.device == null) {
-      return false;
-    }
     return true;
   }
 
-  static Future<void> setNoticeCharacteristic(
-      BluetoothCharacteristic characteristic) async {
-    JKBluetooth.instance.rCharacteristic = characteristic;
-    await characteristic.setNotifyValue(true);
+  //
+  // static Future<void> setNoticeCharacteristic(
+  //     BluetoothCharacteristic characteristic) async {
+  //   JKBluetooth.instance.rCharacteristic = characteristic;
+  //   await characteristic.setNotifyValue(true);
+  //
+  //   if (JKBluetooth.instance._subscriptionNotice != null) {
+  //     JKBluetooth.instance._subscriptionNotice!.cancel();
+  //   }
+  //   JKBluetooth.instance._subscriptionNotice = characteristic.value.listen((value) {
+  //     if (value == null || value.length == 0) {
+  //       printLog("我是蓝牙返回数据 - 空！！");
+  //       return;
+  //     }
+  //     if (value.first == 0xff && value.last == 0xfe && value[1] + 3 == value.length) {
+  //       JKBluetooth.instance._parseValue(value);
+  //     } else {
+  //       printLog("$value数据格式不规范！！");
+  //     }
+  //   });
+  //   JKSetting.instance.getMode();
+  // }
 
-    if (JKBluetooth.instance._subscriptionNotice != null) {
-      JKBluetooth.instance._subscriptionNotice!.cancel();
+  /// 发送数据给车机
+  static void writeData(List<int> data, {Command command = Command.unknown}) {
+    BluetoothTask newTask = BluetoothTask(command, data);
+    if (command == Command.set_volume ||
+        newTask.command == Command.set_playTime ||
+        newTask.command == Command.set_quickGo ||
+        newTask.command == Command.set_quickBack ||
+        newTask.command == Command.set_eq ||
+        newTask.command == Command.set_fader ||
+        newTask.command == Command.set_balance) {
+      _handleTaskQueue(command, BluetoothTask(command, data));
+    } else {
+      _instance.bluetoothQueue.add(newTask);
     }
-    JKBluetooth.instance._subscriptionNotice = characteristic.value.listen((value) {
-      if (value == null || value.length == 0) {
-        printLog("我是蓝牙返回数据 - 空！！");
+    _instance.sendQueuedCommands();
+  }
+
+  static void _handleTaskQueue(Command command, BluetoothTask task) {
+    bool containsTask = _instance.bluetoothQueue.any((task) => task.command == command);
+    if (containsTask) {
+      _instance.bluetoothQueue.removeWhere((task) => task.command == command);
+      _instance.bluetoothQueue.add(task);
+    } else {
+      _instance.bluetoothQueue.add(task);
+    }
+  }
+
+//创建一个监听器，用于不断监听新的命令并发送
+  void sendQueuedCommands() async {
+    if (bluetoothQueue.isNotEmpty && !_isSending) {
+      _isSending = true;
+      BluetoothTask task = bluetoothQueue.removeFirst();
+      // 发送音量调整命令
+      if (kDebugMode && !ConnectNotifier.instance.isConnected) {
+        int firstCode = 0xff;
+        int lastCode = 0xfe;
+        int lengthCode = task.data.length + 1;
+        int verifyCode = lengthCode;
+        for (int item in task.data) {
+          verifyCode += item;
+        }
+        verifyCode = verifyCode % 0x100;
+        List<int> finalData = [firstCode, lengthCode] + task.data + [verifyCode, lastCode];
+        printLog("没连接发送${finalData}");
+        _isSending = false;
         return;
       }
-      if (value.first == 0xff && value.last == 0xfe && value[1] + 3 == value.length) {
-        JKBluetooth.instance._parseValue(value);
-      } else {
-        printLog("$value数据格式不规范！！");
-      }
-    });
-    JKSetting.instance.getMode();
-  }
-
-  static void writeData(List<int> data) {
-    if (JKBluetooth.isConnect() || kDebugMode) {
-      int startCode = 0xff;
-      int endCode = 0xfe;
-      int lengthCode = data.length + 1;
-      int verifyCode = lengthCode;
-      for (int item in data) {
-        verifyCode += item;
-      }
-      verifyCode = verifyCode % 256;
-      List<int> finalData = [startCode, lengthCode] + data + [verifyCode, endCode];
-      printLog("我写了$finalData");
-      if (!kDebugMode) {
-        JKBluetooth.instance.wCharacteristic!.write(finalData, withoutResponse: true);
-      }
-    } else {
-      Fluttertoast.showToast(msg: S.current.reconnected_msg);
-    }
-  }
-
-  static void startScan() {
-    if (JKBluetooth.instance.isScanning) {
-      JKBluetooth.stopScan().then((value) {
-        Timer(Duration(milliseconds: 100), () {
-          JKBluetooth.instance.isScanning = true;
-          JKBluetooth.instance.flutterBlue.startScan();
-        });
-      });
-    } else {
-      JKBluetooth.instance.isScanning = true;
-      JKBluetooth.instance.flutterBlue.startScan();
-    }
-    // FlutterBlueTooth.stopScan();
-  }
-
-  static Future disConnect() {
-    return JKBluetooth.instance.device!.disconnect();
-  }
-
-  Stream<List<ScanResult>> scaning() {
-    return JKBluetooth.instance.flutterBlue.scanResults;
-  }
-
-  static Future stopScan() {
-    JKBluetooth.instance.isScanning = false;
-    return JKBluetooth.instance.flutterBlue.stopScan();
-  }
-
-  Future<List<BluetoothService>> connectDevice(BluetoothDevice device) async {
-    await device.connect();
-    JKBluetooth.instance.device = device;
-    //存储蓝牙id
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString("blueDeviceId", device.id.toString());
-    //监听设备断开
-    device.state.listen((event) {
-      if (event == BluetoothDeviceState.disconnected) {
-        printLog("设备已断开");
-        JKBluetooth.instance.device = null;
-        if (modeCallback != null) {
-          modeCallback!("disconnect");
+      if (ConnectNotifier.instance.isConnected) {
+        int firstCode = 0xff;
+        int lastCode = 0xfe;
+        int lengthCode = task.data.length + 1;
+        int verifyCode = lengthCode;
+        for (int item in task.data) {
+          verifyCode += item;
         }
+        verifyCode = verifyCode % 0x100;
+        List<int> finalData = [firstCode, lengthCode] + task.data + [verifyCode, lastCode];
+        _instance._wCharacteristic!.write(finalData, withoutResponse: true);
+        printLog("蓝牙发送规范数据$finalData");
+      } else {
+        Fluttertoast.showToast(msg: S.current.reconnected_msg);
+      }
+
+      Future.delayed(Duration(milliseconds: 200), () {
+        _isSending = false;
+        sendQueuedCommands();
+      });
+    }
+  }
+
+  // static void startScan() {
+  //   if (JKBluetooth.instance.isScanning) {
+  //     JKBluetooth.stopScan().then((value) {
+  //       Timer(Duration(milliseconds: 100), () {
+  //         JKBluetooth.instance.isScanning = true;
+  //         JKBluetooth.instance.flutterBlue.startScan();
+  //       });
+  //     });
+  //   } else {
+  //     JKBluetooth.instance.isScanning = true;
+  //     JKBluetooth.instance.flutterBlue.startScan();
+  //   }
+  //   // FlutterBlueTooth.stopScan();
+  // }
+
+  /// 断开连接
+  static Future<void> disConnect() async {
+    if (ConnectNotifier.instance.isConnected && _instance.connectedDevice != null) {
+      await _instance.connectedDevice!.disconnect();
+    }
+    return;
+  }
+
+  // Stream<List<ScanResult>> scaning() {
+  //   return JKBluetooth.instance.flutterBlue.scanResults;
+  // }
+
+  // static Future stopScan() {
+  //   JKBluetooth.instance.isScanning = false;
+  //   return JKBluetooth.instance.flutterBlue.stopScan();
+  // }
+
+  /// 连接蓝牙
+  static Future<void> connectDevice(BluetoothDevice device) async {
+    //监听设备状态
+    await device.connect();
+    await _instance._connectService(device);
+    _instance._device_subscription = device.connectionState.listen(
+      (event) async {
+        if (event == BluetoothConnectionState.disconnected) {
+          printLog('设备断开了');
+          ConnectNotifier.instance.setConnectStatus(false);
+          if (_instance._device_subscription != null) {
+            _instance._device_subscription!.cancel();
+            _instance._device_subscription = null;
+          }
+          if (_instance._characteristic_subscription != null) {
+            _instance._characteristic_subscription!.cancel();
+            _instance._characteristic_subscription = null;
+          }
+        } else if (event == BluetoothConnectionState.connected) {
+          printLog('设备连上了');
+          ConnectNotifier.instance.setConnectStatus(true);
+          _instance.connectedDevice = device;
+          if (Platform.isAndroid) {
+            // 安卓设备必须要连上之后延迟发送命令，不然会锁死在线程中，阻塞所有发送操作
+            Future.delayed(Duration(milliseconds: 200), () {
+              JKSetting.instance.getMode();
+            });
+          } else {
+            JKSetting.instance.getMode();
+          }
+          // 存储蓝牙id
+          SharedPreferences shared = await SharedPreferences.getInstance();
+          shared.setString("bleRemoteId", device.remoteId.toString());
+        }
+      },
+    );
+    return;
+  }
+
+  /// 连接服务
+  Future<void> _connectService(BluetoothDevice device) async {
+    // Note: You must call this again if disconnected!
+    List<BluetoothService> services = await device.discoverServices();
+    services.forEach((service) {
+      // do something with service
+      String uuid = service.uuid.toString().toUpperCase();
+      // printLog(uuid);
+      if (uuid == "FFF0") {
+        service.characteristics.forEach((characteristic) async {
+          String cuuid = characteristic.uuid.toString().toUpperCase();
+          if (cuuid == "FFF1") {
+            printLog('读套接字');
+            _rCharacteristic = characteristic;
+            await _rCharacteristic!.setNotifyValue(true);
+            _characteristic_subscription = characteristic.onValueReceived.listen(
+              (value) {
+                if (!_checkReceiveData(value)) {
+                  printLog("$value接收数据格式不规范！");
+                }
+              },
+            );
+          } else if (cuuid == "FFF2") {
+            printLog('写套接字');
+            _wCharacteristic = characteristic;
+          }
+        });
       }
     });
-    return device.discoverServices();
+    return;
+  }
+
+  /// 接收数据 判断接收蓝牙数据是否规范
+  bool _checkReceiveData(List<int> list) {
+    List<int> dataList = List.from(list);
+    if (dataList.first == 0xff && dataList.last == 0xfe && dataList[1] + 3 == dataList.length) {
+      printLog("蓝牙接收规范数据：$dataList");
+      _parseValue(dataList);
+      return true;
+    }
+    return false;
   }
 
   void _parseValue(List<int> value) {
-    printLog("蓝牙接收数据：$value");
+    printLog("接收蓝牙规范数据：$value");
     int function = value[2];
     JKSetting.instance.allData.add(value);
     switch (function) {
@@ -183,6 +353,21 @@ class JKBluetooth {
         JKSetting.instance.volume = value[3].toDouble();
         if (stateCallback != null) {
           stateCallback!('volume');
+        }
+        break;
+      case 0x02: //RGB
+        JKSetting.instance.isAuto = value[3] != 1;
+        if (!JKSetting.instance.isAuto) {
+          if (value.length == 7) {
+            JKSetting.instance.currentRgbIndex = value[4];
+            JKSetting.instance.currentRGB = JKSetting.instance.autoRGBList[value[4] - 1];
+          } else {
+            JKSetting.instance.currentRgbIndex = 0;
+            JKSetting.instance.currentRGB = Color.fromARGB(0xFF, value[5], value[6], value[7]);
+          }
+        }
+        if (stateCallback != null) {
+          stateCallback!('rgb');
         }
         break;
       case 0x04: //radio
@@ -211,22 +396,6 @@ class JKBluetooth {
         JKSetting.instance.presetDecimalChannels = value[13].toList();
         if (stateCallback != null) {
           stateCallback!('radio');
-        }
-        break;
-      case 0x02: //RGB
-        JKSetting.instance.isAuto = value[3] != 1;
-        if (!JKSetting.instance.isAuto) {
-          if (value.length == 7) {
-            JKSetting.instance.currentRgbIndex = value[4];
-            JKSetting.instance.currentRGB = JKSetting.instance.autoRGBList[value[4] - 1];
-          } else {
-            JKSetting.instance.currentRgbIndex = 0;
-            JKSetting.instance.currentRGB =
-                Color.fromARGB(0xFF, value[5], value[6], value[7]);
-          }
-        }
-        if (stateCallback != null) {
-          stateCallback!('rgb');
         }
         break;
       case 0x05: //bt
@@ -440,9 +609,60 @@ class JKBluetooth {
             JKSetting.instance.artistName = "";
             JKSetting.instance.albumName = "";
           }
-          if (modeCallback != null) {
-            modeCallback!('mode');
-          }
+        }
+        switch (JKSetting.instance.mode) {
+          case 1:
+            Get.offUntil(
+              MaterialPageRoute(
+                builder: (context) => BtPage(),
+              ), // 目标页面 A
+              (route) => route.isFirst, // 直到找到堆栈中的第一个页面（页面 A）
+            );
+            break;
+          case 2:
+            Get.offUntil(
+              MaterialPageRoute(
+                builder: (context) => RadioPage(),
+              ), // 目标页面 A
+              (route) => route.isFirst, // 直到找到堆栈中的第一个页面（页面 A）
+            );
+            break;
+          case 3:
+            Get.offUntil(
+              MaterialPageRoute(
+                builder: (context) => PlayPage(),
+              ), // 目标页面 A
+              (route) => route.isFirst, // 直到找到堆栈中的第一个页面（页面 A）
+            );
+            break;
+          case 4:
+            Get.offUntil(
+              MaterialPageRoute(
+                builder: (context) => PlayPage(),
+              ), // 目标页面 A
+              (route) => route.isFirst, // 直到找到堆栈中的第一个页面（页面 A）
+            );
+            break;
+          case 5:
+            Get.offUntil(
+              MaterialPageRoute(
+                builder: (context) => CarAuxPage(),
+              ), // 目标页面 A
+              (route) => route.isFirst, // 直到找到堆栈中的第一个页面（页面 A）
+            );
+            break;
+          case 254:
+            if (JKSetting.instance.mode != value[3]) {
+              JKSetting.instance.mode = value[3];
+              if (value[3] == 0x01) {
+                JKSetting.instance.musicName = "";
+                JKSetting.instance.artistName = "";
+                JKSetting.instance.albumName = "";
+              }
+            }
+            break;
+          default:
+            break;
         }
         break;
       case 0x33:

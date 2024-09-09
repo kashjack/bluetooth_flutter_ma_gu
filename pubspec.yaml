@@ -5,10 +5,10 @@ description: A new Flutter application.
 # pub.dev using `pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0
+version: 1.0.0+1
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: '>=3.1.0 <4.0.0'
 
 flutter_native_splash:
   image: assets/common/launch.png
@@ -24,6 +24,9 @@ dependencies:
 
   fluro: ^2.0.5
 
+  get: ^4.6.6
+
+
   # 打印
   stack_trace:
 
@@ -33,9 +36,6 @@ dependencies:
   #提示
   fluttertoast:
 
-  #播放视频
-  video_player:
-
   #加载本地文件
   path_provider:
 
@@ -43,20 +43,29 @@ dependencies:
   flutter_easyrefresh:
 
   # loading
-  flutter_easyloading:
+  flutter_easyloading: ^3.0.5
 
   # 蓝牙
   # flutter_blue:
-  flutter_blue_plus: 1.4.0
+  flutter_blue_plus: ^1.32.12
+
+  #状态管理
+  provider: ^6.1.2
+
+  #刷新
+  pull_to_refresh: ^2.0.0
 
   #瀑布流
-  flutter_staggered_grid_view:
+#  flutter_staggered_grid_view:
 
   #本地存储
-  shared_preferences:
+  shared_preferences: ^2.3.2
 
   #版本号
-  package_info:
+  package_info: ^2.0.2
+
+  #屏幕适配
+  flutter_screenutil: ^5.9.3
 
 
 

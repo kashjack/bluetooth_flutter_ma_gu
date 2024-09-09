@@ -36,6 +36,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "CUSTOM": MessageLookupByLibrary.simpleMessage("ПОЛЬЗОВАТЕЛЬ"),
         "Connect": MessageLookupByLibrary.simpleMessage("Подключение"),
         "Connected": MessageLookupByLibrary.simpleMessage("Подключено"),
+        "Connection_Timed_Out":
+            MessageLookupByLibrary.simpleMessage("Время ожидания истекло"),
         "Device": MessageLookupByLibrary.simpleMessage("Устройство"),
         "Devices_Found":
             MessageLookupByLibrary.simpleMessage("Найденные устройства"),
@@ -103,6 +105,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "SUBWOOFER_LPF": MessageLookupByLibrary.simpleMessage("САБВУФЕР"),
         "SW_LPF_FRQ": MessageLookupByLibrary.simpleMessage("Частота"),
         "SW_LPF_PHASE": MessageLookupByLibrary.simpleMessage("Фаза"),
+        "Setting": MessageLookupByLibrary.simpleMessage("Параметр"),
         "Speaker": MessageLookupByLibrary.simpleMessage("Кроссовер"),
         "Subwoofer": MessageLookupByLibrary.simpleMessage("Сабвуфер"),
         "Tweeter": MessageLookupByLibrary.simpleMessage("Твитер"),

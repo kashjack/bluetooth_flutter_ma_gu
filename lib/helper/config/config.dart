@@ -20,10 +20,8 @@ class JKColor {
   static Color ff767676 = Color(0xFF767676);
 }
 
-const bool kReleaseMode =
-    bool.fromEnvironment('dart.vm.product', defaultValue: false);
-const bool kProfileMode =
-    bool.fromEnvironment('dart.vm.profile', defaultValue: false);
+const bool kReleaseMode = bool.fromEnvironment('dart.vm.product', defaultValue: false);
+const bool kProfileMode = bool.fromEnvironment('dart.vm.profile', defaultValue: false);
 const bool kDebugMode = !kReleaseMode && !kProfileMode;
 const bool kIsWeb = identical(0, 0.0);
 
@@ -32,14 +30,15 @@ void printLog(Object object) {
     final chain = Chain.forTrace(StackTrace.current);
     final frames = chain.toTrace().frames;
     final frame = frames[1];
-    if (object.toString().contains("蓝牙")) {
+    if (object.toString().contains("规范数据")) {
       print(DateTime.now().toString() + object.toString());
+    } else {
+      print('******************************');
+      print('${frame.uri} -- ${frame.member} -- ${frame.line}');
+      print(DateTime.now());
+      print(object);
+      print('******************************');
     }
-    print('******************************');
-    print('${frame.uri} -- ${frame.member} -- ${frame.line}');
-    print(DateTime.now());
-    print(object);
-    print('******************************');
   } else {
     print(DateTime.now().toString() + object.toString());
   }

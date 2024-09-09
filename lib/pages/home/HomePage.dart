@@ -10,9 +10,10 @@ import 'package:flutter_app/helper/FlutterBlue/JKSetting.dart';
 import 'package:flutter_app/helper/config/config.dart';
 import 'package:flutter_app/helper/config/image.dart';
 import 'package:flutter_app/helper/config/size.dart';
+import 'package:flutter_app/helper/config/text_style.dart';
+import 'package:flutter_app/notifier/changeNotifier.dart';
 import 'package:flutter_app/pages/bt/BTPage.dart';
 import 'package:flutter_app/pages/caraux/CarAuxPage.dart';
-import 'package:flutter_app/pages/connect/ConnectPage.dart';
 import 'package:flutter_app/pages/gps/GPSPage.dart';
 import 'package:flutter_app/pages/home/widget/Swiper.dart';
 import 'package:flutter_app/pages/play/PlayPage.dart';
@@ -21,10 +22,12 @@ import 'package:flutter_app/pages/rgb/RGBPage.dart';
 import 'package:flutter_app/route/BasePage.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:package_info/package_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:get/get.dart';
 
 class HomePage extends BaseWidget with WidgetsBindingObserver {
   @override
@@ -33,13 +36,14 @@ class HomePage extends BaseWidget with WidgetsBindingObserver {
 
 class _HomePageState extends BaseWidgetState<HomePage> {
   List<String> imageArr = [
+    JKImage.icon_radio,
+    JKImage.icon_usb,
     JKImage.icon_bt,
     JKImage.icon_aux,
-    JKImage.icon_usb,
     JKImage.icon_sd,
-    JKImage.icon_radio,
     JKImage.icon_rgb,
     JKImage.icon_gps,
+    JKImage.icon_setting,
   ];
 
   List<String> descArr = [
@@ -49,7 +53,8 @@ class _HomePageState extends BaseWidgetState<HomePage> {
     S.current.SD_Card,
     S.current.Radio,
     S.current.RGB,
-    S.current.GPS
+    S.current.GPS,
+    S.current.Setting
   ];
 
   List<Widget> pageArr = [
@@ -66,230 +71,212 @@ class _HomePageState extends BaseWidgetState<HomePage> {
 
   bool isPlayed = false;
   int count = 5;
-  String version = '';
+  String _version = '';
 
   // late VideoPlayerController? _controller;
   GlobalKey<SwiperState> swiperKey = GlobalKey();
+
   // ignore: cancel_subscriptions
   StreamSubscription<List<ScanResult>>? scanSubscription;
   bool triedConnect = false;
 
   // didChangeAppLifecycleState
 
-  initData() {
-    super.initData();
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _initBlueTooth();
     PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
-      this.version = packageInfo.version;
-      this.setState(() {});
+      setState(() {
+        _version = packageInfo.version;
+      });
     });
-    JKBluetooth.instance.initModeCallback();
+  }
+
+  // 初始化蓝牙
+  void _initBlueTooth() async {
+    await JKBluetooth.instance.initBle();
+    _autoConnect();
+  }
+
+  // 自动连接蓝牙
+  void _autoConnect() async {
+    SharedPreferences shared = await SharedPreferences.getInstance();
+    if (shared.getString('bleRemoteId') != null) {
+      printLog(shared.getString('bleRemoteId')!);
+      StreamSubscription? stream;
+      stream = JKBluetooth.instance.startScan().listen((result) {
+        if (result.device.remoteId.toString() == shared.getString('bleRemoteId')! &&
+            !ConnectNotifier.instance.isConnected) {
+          if (stream != null) {
+            stream!.cancel();
+            stream = null;
+          }
+          EasyLoading.show(status: 'connect...');
+          JKBluetooth.connectDevice(result.device).then((value) {
+            EasyLoading.dismiss();
+          });
+        }
+      });
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    this.setParameters();
-    int quarterTurns = JKSize.instance.isPortrait ? 0 : 3;
-    return Scaffold(
-      // appBar: appBarWidget, //顶部导航栏
-      endDrawer: endDrawerWidget, //右滑菜单栏
-      body: Platform.isIOS
-          ? this._buildContentView()
-          : WillPopScope(
-              onWillPop: () async {
-                AndroidBackTop.backDeskTop(); //设置为返回不退出app
-                return false; //一定要return false
-              },
-              child: this._buildContentView(),
-            ),
-    );
-  }
-
-  Widget _buildContentView() {
-    return Stack(
+  Widget buildVerticalLayout() {
+    return Column(
       children: [
-        Container(
-          child: Image.asset(
-            JKImage.icon_bg,
-            fit: BoxFit.cover,
-            width: JKSize.instance.width,
-            height: JKSize.instance.height,
-          ),
-        ),
-        this._buildBodyLayout(),
+        _buildTopView(),
+        _buildVerticalGridView(),
+        _buildVersionView(),
       ],
     );
   }
 
-  Widget _buildBodyLayout() {
+  @override
+  Widget buildHorizontalLayout() {
+    return Column(
+      children: [
+        _buildTopView(),
+        _buildHorizontalGridView(),
+        _buildVersionView(),
+      ],
+    );
+  }
+
+  /// 顶部view
+  Widget _buildTopView() {
+    final isPortrait = ScreenUtil().orientation == Orientation.portrait;
+    final double top = isPortrait ? 20.r : (Platform.isAndroid ? 0 : 25.r);
+    final double bottom = isPortrait ? 30.r : 20.r;
     return Container(
-      height: JKSize.instance.height,
-      width: JKSize.instance.width,
-      margin: EdgeInsets.only(
-        top: max(JKSize.instance.top, 30),
-        bottom: JKSize.instance.bottom,
-        left: max(JKSize.instance.left, JKSize.instance.right),
-        right: max(JKSize.instance.left, JKSize.instance.right),
-      ),
-      child: Column(
+      padding: EdgeInsets.only(left: 20.r, right: 20.r, top: top, bottom: bottom),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            // color: Colors.blue,
-            margin: EdgeInsets.only(left: 10, right: 10),
-            height: 50,
-            child: this.buildTopView(),
+          Image.asset(
+            JKImage.icon_logo,
+            height: 43,
+            fit: BoxFit.contain,
           ),
-          Container(
-            child: Column(
-              children: [
-                this.buildSwiperView(),
-                Container(
-                  margin: EdgeInsets.only(top: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        this.descArr[this.index],
-                        style: TextStyle(
-                          color: JKColor.main,
-                          fontSize: 28,
-                          fontFamily: 'Mont',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'v ' + this.version,
-            style: TextStyle(
-              color: Colors.white,
-              fontFamily: 'Mont',
-            ),
-          )
+          buildConnectView()
         ],
       ),
     );
   }
 
-  Widget buildTopView() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        Container(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Image.asset(
-                JKImage.icon_logo,
-                height: 23,
-                fit: BoxFit.contain,
-              ),
-              Container(
-                child: TextButton(
-                  style: ButtonStyle(
-                    overlayColor: MaterialStateProperty.all(Colors.transparent),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Offstage(
-                        offstage: !JKBluetooth.isConnect(),
-                        child: Image.asset(
-                          JKImage.icon_true,
-                          height: 15,
-                          width: 20,
-                          fit: BoxFit.fitHeight,
-                        ),
-                      ),
-                      // Spacer(),
-                      Text(
-                        S.current.Connect,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontFamily: 'Mont',
-                        ),
-                      ),
-                    ],
-                  ),
-                  onPressed: () {
-                    this.push(ConnectPage());
-                  },
-                ),
-              )
-            ],
+  Widget _buildVerticalGridView() {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 20 * JKSize.instance.px,
+          right: 20 * JKSize.instance.px,
+          top: max(200 * JKSize.instance.px - 190, 0),
+        ),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, // 每行最多显示3个元素
+            crossAxisSpacing: 15 * JKSize.instance.px, // 交叉轴方向的间距
+            mainAxisSpacing: 15 * JKSize.instance.px, // 主轴方向的间距
+            childAspectRatio: 8 / 5, // 设置元素的宽高比例，这里设为3:2
           ),
-        )
-      ],
-    );
-  }
-
-  Widget buildSwiperView() {
-    return Container(
-      height: 200,
-      child: Swiper(
-        key: swiperKey,
-        images: this.imageArr,
-        viewportFraction: 0.4,
-        initialPage: this.index,
-        onTapCallBack: (int pageIndex) async {
-          if (pageIndex == 6) {
-            if (Platform.isIOS) {
-              this.push(this.pageArr[pageIndex]);
-            } else {
-              if (await canLaunchUrlString('geo:0,0')) {
-                await launchUrlString('geo:0,0');
-              } else {
-                Fluttertoast.showToast(msg: 'Could not launch maps');
-              }
-            }
-            return;
-          }
-          if (kDebugMode) {
-            this.push(this.pageArr[pageIndex]);
-            return;
-          }
-          if (JKBluetooth.isConnect()) {
-            switch (pageIndex) {
-              case 0:
-                JKSetting.instance.setMode(1);
-                break;
-              case 1:
-                JKSetting.instance.setMode(5);
-                break;
-              case 2:
-                JKSetting.instance.setMode(3);
-                break;
-              case 3:
-                JKSetting.instance.setMode(4);
-                break;
-              case 4:
-                JKSetting.instance.setMode(2);
-                break;
-              default:
-                this.push(this.pageArr[pageIndex]);
-                break;
-            }
-          } else {
-            Fluttertoast.showToast(msg: S.current.reconnected_msg);
-          }
-        },
-        onSwitchPageIndexCallBack: (int pageIndex) {
-          this.setState(() {
-            this.index = pageIndex;
-          });
-        },
+          itemCount: imageArr.length,
+          itemBuilder: (BuildContext context, int index) {
+            return _buildItemView(index);
+          },
+        ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  Widget _buildHorizontalGridView() {
+    return Expanded(
+      child: Container(
+        alignment: Alignment.center,
+        padding: EdgeInsets.only(left: 20 * JKSize.instance.px, right: 20 * JKSize.instance.px),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4, // 每行最多显示3个元素
+            crossAxisSpacing: 15 * JKSize.instance.px, // 交叉轴方向的间距
+            mainAxisSpacing: 15 * JKSize.instance.px, // 主轴方向的间距
+            childAspectRatio: 8 / 5, // 设置元素的宽高比例，这里设为3:2
+          ),
+          itemCount: imageArr.length,
+          itemBuilder: (BuildContext context, int index) {
+            return _buildItemView(index);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemView(int index) {
+    return InkWell(
+      onTap: () {
+        if (kDebugMode || ConnectNotifier.instance.isConnected) {
+          if (index == 0) {
+            Get.to(() => RadioPage());
+          } else if (index == 1) {
+            Get.to(() => PlayPage());
+          } else if (index == 2) {
+            Get.to(() => BtPage());
+          } else if (index == 3) {
+            Get.to(() => CarAuxPage());
+          } else if (index == 4) {
+            Get.to(() => PlayPage());
+          } else if (index == 5) {
+            Get.to(() => RGBPage());
+          } else if (index == 6) {
+            Get.to(() => GPSPage());
+          } else if (index == 7) {
+            // Get.to(() => Setting());
+          } else {
+            Fluttertoast.showToast(msg: S.current.reconnected_msg);
+          }
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Image.asset(
+                imageArr[index],
+              ),
+            ),
+            Positioned(
+              top: 20 * JKSize.instance.px,
+              right: 0,
+              child: Container(
+                alignment: Alignment.center,
+                width: 100,
+                child: Text(
+                  descArr[index],
+                  style: styleSize_16Height_22.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVersionView() {
+    return Container(
+      padding: EdgeInsets.all(JKSize.instance.isPortrait ? 15 : 0),
+      child: Text(
+        'v ' + _version,
+        style: styleSize_14Height_19.copyWith(
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 
   @override
@@ -314,62 +301,7 @@ class _HomePageState extends BaseWidgetState<HomePage> {
           break;
       }
     }
-    swiperKey.currentState!.pageTo(this.index);
-    super.didPopNext();
-  }
-
-  Future<void> connect() async {
-    EasyLoading.show(status: 'connect...');
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.getString("blueDeviceId") != null) {
-      JKBluetooth.instance.initBle();
-      JKBluetooth.instance.isScanning = true;
-      JKBluetooth.instance.flutterBlue.startScan();
-      JKBluetooth.instance.scaning().listen(
-        (results) {
-          // 扫描结果 可扫描到的所有蓝牙设备
-          for (ScanResult result in results) {
-            if (result.device.name.length > 0 &&
-                result.device.id.toString() != result.device.name &&
-                result.device.id.toString() == prefs.getString("blueDeviceId")) {
-              if (!triedConnect) {
-                JKBluetooth.stopScan();
-                triedConnect = true;
-                JKBluetooth.instance.connectDevice(result.device).then(
-                  (value) {
-                    Fluttertoast.showToast(msg: 'Connected');
-                    this.setState(() {});
-                    List<BluetoothService> services = value;
-                    services.forEach(
-                      (service) {
-                        // printLog("所有服务值 --- $service");
-                        if (service.uuid.toString().toUpperCase().substring(4, 8) ==
-                            "FFF0") {
-                          service.characteristics.forEach(
-                            (characteristic) {
-                              // characteristic.uuid;
-                              String upString = characteristic.uuid
-                                  .toString()
-                                  .toUpperCase()
-                                  .substring(4, 8);
-                              // printLog("所有特征值 --- $characteristic");
-                              if (upString == "FFF2") {
-                                JKBluetooth.instance.wCharacteristic = characteristic;
-                              } else if (upString == "FFF1") {
-                                JKBluetooth.setNoticeCharacteristic(characteristic);
-                              }
-                            },
-                          );
-                        }
-                      },
-                    );
-                  },
-                );
-              }
-            }
-          }
-        },
-      );
-    }
+    // swiperKey.currentState!.pageTo(this.index);
+    // super.didPopNext();
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:get/get.dart';
 import 'pages/home/HomePage.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'generated/l10n.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 void main() {
   runApp(MyApp());
@@ -24,25 +26,30 @@ class MyApp extends StatelessWidget {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight
     ]);
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      navigatorObservers: [routeObserver],
-      title: 'ACV',
-      supportedLocales: S.delegate.supportedLocales,
-      localizationsDelegates: [
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        S.delegate
-      ],
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return ScreenUtilInit(
+      designSize: const Size(375, 667),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      child: GetMaterialApp(
+        navigatorKey: navigatorKey,
+        navigatorObservers: [routeObserver],
+        title: 'DSP RC',
+        supportedLocales: S.delegate.supportedLocales,
+        localizationsDelegates: [
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          S.delegate
+        ],
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        builder: EasyLoading.init(),
+        routes: {
+          "/": (context) => HomePage(),
+        },
+        debugShowCheckedModeBanner: false, //去掉右上角DEBUG标签
       ),
-      builder: EasyLoading.init(),
-      routes: {
-        "/": (context) => HomePage(),
-      },
-      debugShowCheckedModeBanner: false, //去掉右上角DEBUG标签
     );
   }
 }

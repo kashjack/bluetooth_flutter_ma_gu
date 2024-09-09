@@ -160,6 +160,16 @@ class S {
     );
   }
 
+  /// `Connection Timed Out`
+  String get Connection_Timed_Out {
+    return Intl.message(
+      'Connection Timed Out',
+      name: 'Connection_Timed_Out',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Paired Device`
   String get Paired_Device {
     return Intl.message(
@@ -485,6 +495,16 @@ class S {
     return Intl.message(
       'X\'Over',
       name: 'XOver',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Setting`
+  String get Setting {
+    return Intl.message(
+      'Setting',
+      name: 'Setting',
       desc: '',
       args: [],
     );

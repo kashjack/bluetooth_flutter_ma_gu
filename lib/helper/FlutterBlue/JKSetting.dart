@@ -14,8 +14,8 @@ import 'package:flutter_app/bean/AlignmentBean.dart';
 import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/helper/FlutterBlue/JKBluetooth.dart';
 import 'package:flutter_app/helper/config/config.dart';
+import 'package:flutter_app/notifier/device_model.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
 import 'JKBluetooth.dart';
 
 class JKSetting {
@@ -196,7 +196,7 @@ class JKSetting {
         //没有正在设置音量，就启动一个延时future写数据，正在设置音量就只记录最新的音量值
         isSettingVolume = true;
         delayed(() {
-          JKBluetooth.writeData([0x01, JKSetting.instance.volume.toInt()]);
+          JKBluetooth.writeData([0x01, JKSetting.instance.volume.toInt()], command: Command.set_volume);
           isSettingVolume = false;
         });
       }

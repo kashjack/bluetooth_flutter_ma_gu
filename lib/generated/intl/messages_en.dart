@@ -36,6 +36,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "CUSTOM": MessageLookupByLibrary.simpleMessage("CUSTOM"),
         "Connect": MessageLookupByLibrary.simpleMessage("Connect"),
         "Connected": MessageLookupByLibrary.simpleMessage("Connected"),
+        "Connection_Timed_Out":
+            MessageLookupByLibrary.simpleMessage("Connection Timed Out"),
         "Device": MessageLookupByLibrary.simpleMessage("Device"),
         "Devices_Found": MessageLookupByLibrary.simpleMessage("Devices Found"),
         "DisConnected": MessageLookupByLibrary.simpleMessage("DisConnected"),
@@ -100,6 +102,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "SUBWOOFER_LPF": MessageLookupByLibrary.simpleMessage("SUBWOOFER LPF"),
         "SW_LPF_FRQ": MessageLookupByLibrary.simpleMessage("SW LPF FRQ"),
         "SW_LPF_PHASE": MessageLookupByLibrary.simpleMessage("SW LPF PHASE"),
+        "Setting": MessageLookupByLibrary.simpleMessage("Setting"),
         "Speaker": MessageLookupByLibrary.simpleMessage("Speaker"),
         "Subwoofer": MessageLookupByLibrary.simpleMessage("Subwoofer"),
         "Tweeter": MessageLookupByLibrary.simpleMessage("Tweeter"),

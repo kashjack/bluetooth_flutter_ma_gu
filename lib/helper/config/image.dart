@@ -14,7 +14,6 @@ class JKImage {
   static const icon_true = 'assets/common/icon_true.png';
   static const icon_false = 'assets/common/icon_false.png';
   static const icon_left = 'assets/common/icon_left.png';
-  static const icon_setting = 'assets/common/icon_setting.png';
   static const icon_loudspeaker1 = 'assets/common/icon_loudspeaker1.png';
   static const icon_loudspeaker2 = 'assets/common/icon_loudspeaker2.png';
   static const icon_loudspeaker3 = 'assets/common/icon_loudspeaker3.png';
@@ -31,6 +30,7 @@ class JKImage {
   static const icon_voice_big = 'assets/common/icon_voice_big.png';
 
   // home
+  static const icon_setting = 'assets/home/icon_setting.png';
   static const icon_spl = 'assets/home/icon_spl.png';
   static const icon_bt = 'assets/home/icon_bt.png';
   static const icon_aux = 'assets/home/icon_aux.png';
