@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/generated/l10n.dart';
 import 'package:flutter_app/helper/FlutterBlue/JKBluetooth.dart';
 import 'package:flutter_app/helper/FlutterBlue/JKSetting.dart';
+import 'package:flutter_app/helper/config/config.dart';
 import 'package:flutter_app/helper/config/image.dart';
 import 'package:flutter_app/helper/config/size.dart';
 import 'package:flutter_app/helper/config/text_style.dart';
@@ -35,6 +36,7 @@ class _RadioPageState extends BaseWidgetState<RadioPage> {
       if (value == "radio") {
         radioSliderKey.currentState!.reloadProgress(JKSetting.instance.channel);
       }
+      printLog('2024年09月10日12:00:29');
       this.setState(() {});
     };
     JKSetting.instance.getVolume().then((value) {

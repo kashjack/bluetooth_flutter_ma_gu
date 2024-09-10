@@ -345,7 +345,6 @@ class JKBluetooth extends ChangeNotifier {
   }
 
   void _parseValue(List<int> value) {
-    printLog("接收蓝牙规范数据：$value");
     int function = value[2];
     JKSetting.instance.allData.add(value);
     switch (function) {
