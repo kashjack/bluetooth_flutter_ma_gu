@@ -5,7 +5,7 @@ description: A new Flutter application.
 # pub.dev using `pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+1
+version: 0.0.1+1
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
@@ -56,13 +56,13 @@ dependencies:
   pull_to_refresh: ^2.0.0
 
   #瀑布流
-#  flutter_staggered_grid_view:
+  #  flutter_staggered_grid_view:
 
   #本地存储
   shared_preferences: ^2.3.2
 
   #版本号
-  package_info: ^2.0.2
+  package_info_plus: ^8.0.2
 
   #屏幕适配
   flutter_screenutil: ^5.9.3
@@ -101,13 +101,13 @@ flutter:
     - assets/rgb/
 
   fonts:
-      - family: Mont
-        fonts:
-          - asset: assets/fonts/Mont-Regular.otf
-            weight: 400
-          - asset: assets/fonts/Mont-Bold.otf
-            weight: 700
-          - asset: assets/fonts/Mont-RegularItalic.otf
-            style: italic
+    - family: Mont
+      fonts:
+        - asset: assets/fonts/Mont-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Mont-Bold.otf
+          weight: 700
+        - asset: assets/fonts/Mont-RegularItalic.otf
+          style: italic
 flutter_intl:
   enabled: true
